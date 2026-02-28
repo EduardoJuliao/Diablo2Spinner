@@ -1,22 +1,20 @@
-// OBS overlay mode: use http://localhost:3000?obs for transparent background
+// OBS overlay mode: use ?obs for transparent background
 if (new URLSearchParams(window.location.search).has('obs')) {
     document.body.classList.add('obs-mode');
 }
 
-// Socket.io connection
 const socket = io();
 
-// Canvas setup
+// ── Canvas setup ─────────────────────────────────────────────
 const canvas = document.getElementById('wheelCanvas');
 const ctx = canvas.getContext('2d');
 const centerX = canvas.width / 2;
 const centerY = canvas.height / 2;
 const radius = 280;
 
-// Wheel configuration - 40 segments
-// Interleaved: Keep/Keep-Share alternating, DROP in the middle (position 20)
-const K  = { text: 'Keep',        color: '#28a745' };
-const KS = { text: 'Keep - Share', color: '#007bff' };
+// ── Wheel segments ───────────────────────────────────────────
+const K  = { text: 'Keep Char',    color: '#28a745' };
+const KS = { text: 'Keep Shared',  color: '#007bff' };
 const D  = { text: 'DROP',         color: '#dc3545' };
 
 const segments = [
@@ -27,28 +25,27 @@ const segments = [
     K, KS, K, KS, K, KS, K, KS, K,       // 31-39
 ];
 
-const totalSegments = segments.length;
-const anglePerSegment = (2 * Math.PI) / totalSegments;
+const anglePerSegment = (2 * Math.PI) / segments.length;
 
 let currentRotation = 0;
 let isSpinning = false;
 let spinQueue = [];
 
-// Round state
+// ── Round state ──────────────────────────────────────────────
 let roundActive = false;
 let timerInterval = null;
 let timeRemaining = 120;
 
 function startRound() {
+    resetRoundBits();
+    updateDonorTable();
     roundActive = true;
     timeRemaining = 120;
     updateTimerDisplay();
     timerInterval = setInterval(() => {
         timeRemaining--;
         updateTimerDisplay();
-        if (timeRemaining <= 0) {
-            endRound('timeout');
-        }
+        if (timeRemaining <= 0) endRound('timeout');
     }, 1000);
 }
 
@@ -58,36 +55,99 @@ function endRound(reason) {
     roundActive = false;
     updateTimerDisplay();
 
-    const roundResultEl = document.getElementById('roundResult');
     if (reason === 'timeout') {
-        roundResultEl.textContent = 'TIME\'S UP! YOU WIN! Keep the item!';
-        roundResultEl.className = 'round-result win';
+        showOverlay("TIME'S UP!\nYOU WIN! Keep it!", 'win', 6000);
     } else {
-        roundResultEl.textContent = 'ROUND OVER — DROP IT!';
-        roundResultEl.className = 'round-result drop';
+        showOverlay('ROUND OVER\nDROP IT!', 'drop', 6000);
     }
 
     setTimeout(() => {
-        roundResultEl.textContent = '';
-        roundResultEl.className = 'round-result';
         document.getElementById('currentDonor').textContent = '';
     }, 6000);
 }
 
 function updateTimerDisplay() {
-    const timerEl = document.getElementById('timer');
+    const el = document.getElementById('timer');
     if (!roundActive) {
-        timerEl.textContent = '';
-        timerEl.className = 'timer';
+        el.textContent = '';
+        el.className = 'timer';
         return;
     }
     const mins = Math.floor(timeRemaining / 60);
     const secs = timeRemaining % 60;
-    timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-    timerEl.className = timeRemaining <= 30 ? 'timer danger' : 'timer';
+    el.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    el.className = timeRemaining <= 30 ? 'timer danger' : 'timer';
 }
 
-// Draw the wheel
+// ── Overlay ──────────────────────────────────────────────────
+let overlayTimeout = null;
+
+function showOverlay(text, type, duration = 3500) {
+    const overlay = document.getElementById('resultOverlay');
+    overlay.innerHTML = text.replace('\n', '<br>');
+    overlay.className = `result-overlay ${type}`;
+    clearTimeout(overlayTimeout);
+    overlayTimeout = setTimeout(() => {
+        overlay.className = 'result-overlay hidden';
+    }, duration);
+}
+
+// ── Donor tracking ───────────────────────────────────────────
+// Persists all-time totals in localStorage; round bits reset each round
+let donors = {};
+
+function loadDonors() {
+    try {
+        const saved = localStorage.getItem('d2wheel_donors');
+        if (saved) {
+            const totals = JSON.parse(saved);
+            for (const [name, totalBits] of Object.entries(totals)) {
+                donors[name] = { roundBits: 0, totalBits };
+            }
+        }
+    } catch (e) {}
+}
+
+function saveDonors() {
+    try {
+        const totals = {};
+        for (const [name, data] of Object.entries(donors)) {
+            totals[name] = data.totalBits;
+        }
+        localStorage.setItem('d2wheel_donors', JSON.stringify(totals));
+    } catch (e) {}
+}
+
+function addDonation(name, bits) {
+    if (!donors[name]) donors[name] = { roundBits: 0, totalBits: 0 };
+    donors[name].roundBits += bits;
+    donors[name].totalBits += bits;
+    saveDonors();
+    updateDonorTable();
+}
+
+function resetRoundBits() {
+    for (const name of Object.keys(donors)) {
+        donors[name].roundBits = 0;
+    }
+}
+
+function updateDonorTable() {
+    const tbody = document.getElementById('donorTableBody');
+    const rows = Object.entries(donors)
+        .filter(([, d]) => d.totalBits > 0)
+        .sort(([, a], [, b]) => b.roundBits - a.roundBits || b.totalBits - a.totalBits)
+        .map(([name, data]) => `
+            <tr>
+                <td>${name}</td>
+                <td>${data.roundBits > 0 ? data.roundBits.toLocaleString() : '-'}</td>
+                <td>${data.totalBits.toLocaleString()}</td>
+            </tr>`)
+        .join('');
+    tbody.innerHTML = rows || '<tr><td colspan="3" style="color:#666;text-align:center">Waiting for donations...</td></tr>';
+}
+
+// ── Wheel drawing ────────────────────────────────────────────
 function drawWheel() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -95,19 +155,15 @@ function drawWheel() {
         const startAngle = currentRotation + (index * anglePerSegment);
         const endAngle = startAngle + anglePerSegment;
 
-        // Draw segment
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, startAngle, endAngle);
         ctx.lineTo(centerX, centerY);
         ctx.fillStyle = segment.color;
         ctx.fill();
-
-        // Draw border
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Draw text
         ctx.save();
         ctx.translate(centerX, centerY);
         ctx.rotate(startAngle + anglePerSegment / 2);
@@ -118,7 +174,7 @@ function drawWheel() {
         ctx.restore();
     });
 
-    // Draw center circle
+    // Center circle
     ctx.beginPath();
     ctx.arc(centerX, centerY, 30, 0, 2 * Math.PI);
     ctx.fillStyle = '#ffd700';
@@ -128,38 +184,25 @@ function drawWheel() {
     ctx.stroke();
 }
 
-// Get the segment at the top (where pointer is)
 function getWinningSegment() {
-    // The pointer is at the top (12 o'clock position)
-    // We need to find which segment is at 3π/2 (270 degrees, top of circle)
     const pointerAngle = (3 * Math.PI) / 2;
-    let normalizedRotation = (currentRotation % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-    let adjustedAngle = (pointerAngle - normalizedRotation + 2 * Math.PI) % (2 * Math.PI);
-    const segmentIndex = Math.floor(adjustedAngle / anglePerSegment);
-    return segments[segmentIndex];
+    const normalizedRotation = (currentRotation % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+    const adjustedAngle = (pointerAngle - normalizedRotation + 2 * Math.PI) % (2 * Math.PI);
+    return segments[Math.floor(adjustedAngle / anglePerSegment)];
 }
 
-// Spin the wheel
+// ── Spin ─────────────────────────────────────────────────────
 function spinWheel(duration = 5000) {
     if (isSpinning) return;
-
     isSpinning = true;
+
     const startTime = Date.now();
     const startRotation = currentRotation;
-
-    // Random final rotation (at least 5 full spins)
-    const minSpins = 5;
-    const maxSpins = 8;
-    const spins = minSpins + Math.random() * (maxSpins - minSpins);
-    const totalRotation = spins * 2 * Math.PI;
+    const totalRotation = (5 + Math.random() * 3) * 2 * Math.PI;
 
     function animate() {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-
-        // Easing function (ease-out)
+        const progress = Math.min((Date.now() - startTime) / duration, 1);
         const easeOut = 1 - Math.pow(1 - progress, 3);
-
         currentRotation = startRotation + totalRotation * easeOut;
         drawWheel();
 
@@ -168,21 +211,19 @@ function spinWheel(duration = 5000) {
         } else {
             isSpinning = false;
             const result = getWinningSegment();
-            displayResult(result);
             socket.emit('spinComplete', { result: result.text });
 
             if (result.text === 'DROP') {
-                // Stop the round — queue is preserved for next round
                 endRound('drop');
             } else {
+                // Show Keep / Keep-Share overlay, then continue queue if round still active
+                showOverlay(result.text, result.text === 'Keep Char' ? 'keep' : 'share');
                 setTimeout(() => {
                     if (roundActive && spinQueue.length > 0) {
-                        // Round still running, more spins queued
                         spinQueue.shift();
                         updateSpinQueue();
                         spinWheel();
                     } else {
-                        // Either timer expired or queue is empty — stop here
                         document.getElementById('currentDonor').textContent = '';
                     }
                 }, 3000);
@@ -193,80 +234,48 @@ function spinWheel(duration = 5000) {
     animate();
 }
 
-// Display result
-function displayResult(segment) {
-    const resultDiv = document.getElementById('result');
-    resultDiv.textContent = segment.text;
-    resultDiv.className = 'result-display';
-
-    if (segment.text === 'Keep') {
-        resultDiv.classList.add('keep');
-    } else if (segment.text === 'Keep - Share') {
-        resultDiv.classList.add('share');
-    } else if (segment.text === 'DROP') {
-        resultDiv.classList.add('drop');
-    }
-
-    setTimeout(() => {
-        resultDiv.textContent = '';
-        resultDiv.className = 'result-display';
-    }, 5000);
-}
-
-// Update spin queue display
 function updateSpinQueue() {
-    const queueDiv = document.getElementById('spinQueue');
-    if (spinQueue.length > 0) {
-        queueDiv.textContent = `Spins remaining: ${spinQueue.length}`;
-    } else {
-        queueDiv.textContent = '';
-    }
+    const el = document.getElementById('spinQueue');
+    el.textContent = spinQueue.length > 0 ? `Spins in queue: ${spinQueue.length}` : '';
 }
 
-// Socket event listeners
-socket.on('connect', () => {
-    console.log('✅ Connected to server');
-});
+// ── Socket events ────────────────────────────────────────────
+socket.on('connect', () => console.log('✅ Connected to server'));
 
 socket.on('newSpin', (data) => {
-    console.log('🎲 New spin request:', data);
+    console.log('🎲 New spin:', data);
 
-    for (let i = 0; i < data.spins; i++) {
-        spinQueue.push(data);
-    }
+    for (let i = 0; i < data.spins; i++) spinQueue.push(data);
 
     document.getElementById('currentDonor').textContent =
-        `${data.donor} donated ${data.bits} bits! ${data.spins} spin(s)`;
+        `${data.donor} donated ${data.bits} bits! (${data.spins} spin${data.spins > 1 ? 's' : ''})`;
 
+    addDonation(data.donor, data.bits);
     updateSpinQueue();
 
     if (!isSpinning) {
-        // Start a new round only if one isn't already running
-        if (!roundActive) {
-            startRound();
-        }
+        if (!roundActive) startRound();
         spinQueue.shift();
         updateSpinQueue();
         spinWheel();
     }
 });
 
-// Test spin function
+// ── Test spin ────────────────────────────────────────────────
 function testSpin() {
     const donor = document.getElementById('testDonor').value || 'TestViewer';
     const bits = parseInt(document.getElementById('testBits').value) || 100;
-
     fetch('/api/test-spin', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ donor, bits })
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => console.log('Test spin sent:', data))
-    .catch(error => console.error('Error:', error));
+    .catch(err => console.error('Error:', err));
 }
 
-// Initial draw
+// ── Init ─────────────────────────────────────────────────────
+loadDonors();
+updateDonorTable();
 drawWheel();

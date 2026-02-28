@@ -7,22 +7,44 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Centered overlay for spin/round results -->
+    <div id="resultOverlay" class="result-overlay hidden"></div>
+
     <div class="container">
         <h1>Diablo 2 Loot Wheel</h1>
-        <p class="subtitle">100 Bits = 1 Spin | Find a Unique? Let chat decide your fate!</p>
+        <p class="subtitle">100 Bits = 1 Spin | Find a Unique or High Rune (Vex or higher)? Let chat decide your fate!</p>
 
-        <div class="wheel-container">
-            <div class="wheel-pointer"></div>
-            <canvas id="wheelCanvas" width="600" height="600"></canvas>
-        </div>
+        <div class="main-layout">
 
-        <div id="timer" class="timer"></div>
-        <div id="roundResult" class="round-result"></div>
+            <!-- Left: Wheel -->
+            <div class="left-column">
+                <div class="wheel-container">
+                    <div class="wheel-pointer"></div>
+                    <canvas id="wheelCanvas" width="600" height="600"></canvas>
+                </div>
+                <div id="currentDonor" class="donor-info"></div>
+                <div id="spinQueue" class="spin-queue"></div>
+            </div>
 
-        <div class="info-panel">
-            <div id="currentDonor" class="donor-info"></div>
-            <div id="spinQueue" class="spin-queue"></div>
-            <div id="result" class="result-display"></div>
+            <!-- Right: Timer + Donor Table -->
+            <div class="right-column">
+                <div id="timer" class="timer"></div>
+
+                <div class="donor-table-container">
+                    <h3>Round Donors</h3>
+                    <table class="donor-table">
+                        <thead>
+                            <tr>
+                                <th>Viewer</th>
+                                <th>This Round</th>
+                                <th>All Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="donorTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
         <div class="test-controls">
@@ -35,8 +57,8 @@
         <div class="stats">
             <h3>Wheel Statistics</h3>
             <p>Total Segments: 40</p>
-            <p class="stat-keep">Keep: 20 segments (50%)</p>
-            <p class="stat-share">Keep - Share: 19 segments (47.5%)</p>
+            <p class="stat-keep">Keep Current Char: 20 segments (50%)</p>
+            <p class="stat-share">Keep in Shared Tab: 19 segments (47.5%)</p>
             <p class="stat-drop">DROP: 1 segment (2.5%)</p>
         </div>
     </div>
