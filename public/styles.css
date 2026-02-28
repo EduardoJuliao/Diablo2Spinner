@@ -189,3 +189,48 @@ h1 {
 .stat-keep { color: #28a745; }
 .stat-share { color: #007bff; }
 .stat-drop { color: #dc3545; font-weight: bold; }
+
+/* Timer */
+.timer {
+    font-size: 4em;
+    font-weight: bold;
+    text-align: center;
+    margin: 10px auto;
+    letter-spacing: 4px;
+    color: #ffd700;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    min-height: 1.2em;
+    transition: color 0.5s;
+}
+
+.timer.danger {
+    color: #dc3545;
+    text-shadow: 0 0 20px rgba(220, 53, 69, 0.8);
+    animation: pulse 1s infinite;
+}
+
+/* Round result overlay */
+.round-result {
+    font-size: 2.5em;
+    font-weight: bold;
+    text-align: center;
+    padding: 20px 40px;
+    border-radius: 15px;
+    margin: 10px auto;
+    max-width: 700px;
+    min-height: 1.2em;
+}
+
+.round-result.win {
+    background: linear-gradient(135deg, #1e7e34, #28a745);
+    color: #fff;
+    animation: fadeIn 0.5s;
+    box-shadow: 0 0 40px rgba(40, 167, 69, 0.6);
+}
+
+.round-result.drop {
+    background: linear-gradient(135deg, #bd2130, #dc3545);
+    color: #fff;
+    animation: pulse 1s infinite;
+    box-shadow: 0 0 40px rgba(220, 53, 69, 0.6);
+}

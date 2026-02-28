@@ -34,6 +34,59 @@ let currentRotation = 0;
 let isSpinning = false;
 let spinQueue = [];
 
+// Round state
+let roundActive = false;
+let timerInterval = null;
+let timeRemaining = 120;
+
+function startRound() {
+    roundActive = true;
+    timeRemaining = 120;
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+        timeRemaining--;
+        updateTimerDisplay();
+        if (timeRemaining <= 0) {
+            endRound('timeout');
+        }
+    }, 1000);
+}
+
+function endRound(reason) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    roundActive = false;
+    updateTimerDisplay();
+
+    const roundResultEl = document.getElementById('roundResult');
+    if (reason === 'timeout') {
+        roundResultEl.textContent = 'TIME\'S UP! YOU WIN! Keep the item!';
+        roundResultEl.className = 'round-result win';
+    } else {
+        roundResultEl.textContent = 'ROUND OVER — DROP IT!';
+        roundResultEl.className = 'round-result drop';
+    }
+
+    setTimeout(() => {
+        roundResultEl.textContent = '';
+        roundResultEl.className = 'round-result';
+        document.getElementById('currentDonor').textContent = '';
+    }, 6000);
+}
+
+function updateTimerDisplay() {
+    const timerEl = document.getElementById('timer');
+    if (!roundActive) {
+        timerEl.textContent = '';
+        timerEl.className = 'timer';
+        return;
+    }
+    const mins = Math.floor(timeRemaining / 60);
+    const secs = timeRemaining % 60;
+    timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    timerEl.className = timeRemaining <= 30 ? 'timer danger' : 'timer';
+}
+
 // Draw the wheel
 function drawWheel() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -116,20 +169,24 @@ function spinWheel(duration = 5000) {
             isSpinning = false;
             const result = getWinningSegment();
             displayResult(result);
-
-            // Emit result to server
             socket.emit('spinComplete', { result: result.text });
 
-            // Process next spin in queue
-            setTimeout(() => {
-                if (spinQueue.length > 0) {
-                    spinQueue.shift();
-                    updateSpinQueue();
-                    spinWheel();
-                } else {
-                    document.getElementById('currentDonor').textContent = '';
-                }
-            }, 3000);
+            if (result.text === 'DROP') {
+                // Stop the round — queue is preserved for next round
+                endRound('drop');
+            } else {
+                setTimeout(() => {
+                    if (roundActive && spinQueue.length > 0) {
+                        // Round still running, more spins queued
+                        spinQueue.shift();
+                        updateSpinQueue();
+                        spinWheel();
+                    } else {
+                        // Either timer expired or queue is empty — stop here
+                        document.getElementById('currentDonor').textContent = '';
+                    }
+                }, 3000);
+            }
         }
     }
 
@@ -174,19 +231,20 @@ socket.on('connect', () => {
 socket.on('newSpin', (data) => {
     console.log('🎲 New spin request:', data);
 
-    // Add spins to queue
     for (let i = 0; i < data.spins; i++) {
         spinQueue.push(data);
     }
 
-    // Display donor info
     document.getElementById('currentDonor').textContent =
         `${data.donor} donated ${data.bits} bits! ${data.spins} spin(s)`;
 
     updateSpinQueue();
 
-    // Start spinning if not already spinning
     if (!isSpinning) {
+        // Start a new round only if one isn't already running
+        if (!roundActive) {
+            startRound();
+        }
         spinQueue.shift();
         updateSpinQueue();
         spinWheel();
