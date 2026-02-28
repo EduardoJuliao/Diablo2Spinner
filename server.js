@@ -119,6 +119,13 @@ app.post('/webhooks/callback', (req, res) => {
   res.status(200).send('OK');
 });
 
+// Manually start a round — use this when you find an item and want to spin the queue
+app.post('/api/start-round', (req, res) => {
+  console.log('🎡 Manual round start triggered');
+  io.emit('startRound');
+  res.json({ success: true });
+});
+
 // Manual test endpoint (for testing without actual bits)
 app.post('/api/test-spin', (req, res) => {
   const { donor, bits } = req.body;

@@ -44,9 +44,9 @@ body.obs-mode .stats {
 }
 
 .result-overlay.keep {
-    background: linear-gradient(135deg, #c0580a, #e67e22);
+    background: linear-gradient(135deg, #6c3483, #9b59b6);
     color: #fff;
-    box-shadow: 0 0 60px rgba(230, 126, 34, 0.8);
+    box-shadow: 0 0 60px rgba(155, 89, 182, 0.8);
     opacity: 1;
     animation: fadeIn 0.4s;
 }
@@ -283,7 +283,7 @@ h1 {
     font-size: 1.1em;
 }
 
-.stat-keep  { color: #e67e22; }
+.stat-keep  { color: #9b59b6; }
 .stat-share { color: #007bff; }
 .stat-drop  { color: #dc3545; font-weight: bold; }
 

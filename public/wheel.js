@@ -13,7 +13,7 @@ const centerY = canvas.height / 2;
 const radius = 280;
 
 // ── Wheel segments ───────────────────────────────────────────
-const K  = { text: 'Keep Char',    color: '#e67e22' };
+const K  = { text: 'Keep Char',    color: '#9b59b6' };
 const KS = { text: 'Keep Shared',  color: '#007bff' };
 const D  = { text: 'DROP',         color: '#dc3545' };
 
@@ -252,10 +252,33 @@ function spinWheel(duration = 5000) {
 function updateSpinQueue() {
     const el = document.getElementById('spinQueue');
     el.textContent = spinQueue.length > 0 ? `Spins in queue: ${spinQueue.length}` : '';
+    try {
+        localStorage.setItem('d2wheel_queue', JSON.stringify(spinQueue));
+    } catch (e) {}
+}
+
+function loadQueue() {
+    try {
+        const saved = localStorage.getItem('d2wheel_queue');
+        if (saved) spinQueue = JSON.parse(saved);
+    } catch (e) {}
 }
 
 // ── Socket events ────────────────────────────────────────────
 socket.on('connect', () => console.log('✅ Connected to server'));
+
+socket.on('startRound', () => {
+    if (roundActive || isSpinning) return;
+    if (spinQueue.length === 0) {
+        console.log('⚠️ Start round triggered but queue is empty');
+        return;
+    }
+    console.log('🎡 Manual round start — spinning queue');
+    startRound();
+    spinQueue.shift();
+    updateSpinQueue();
+    spinWheel();
+});
 
 socket.on('newSpin', (data) => {
     console.log('🎲 New spin:', data);
@@ -278,6 +301,14 @@ socket.on('newSpin', (data) => {
     }
 });
 
+// ── Manual round start ───────────────────────────────────────
+function startRoundManual() {
+    fetch('/api/start-round', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => console.log('Round start triggered:', data))
+        .catch(err => console.error('Error:', err));
+}
+
 // ── Test spin ────────────────────────────────────────────────
 function testSpin() {
     const donor = document.getElementById('testDonor').value || 'TestViewer';
@@ -294,5 +325,7 @@ function testSpin() {
 
 // ── Init ─────────────────────────────────────────────────────
 loadDonors();
+loadQueue();
 updateDonorTable();
+updateSpinQueue();
 drawWheel();
