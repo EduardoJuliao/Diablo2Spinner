@@ -300,6 +300,17 @@ socket.on('newSpin', (data) => {
     }
 });
 
+// ── Clear stored data ────────────────────────────────────────
+function clearData() {
+    if (!confirm('Clear all donor totals and spin queue?')) return;
+    localStorage.removeItem('d2wheel_donors');
+    localStorage.removeItem('d2wheel_queue');
+    donors = {};
+    spinQueue = [];
+    updateDonorTable();
+    updateSpinQueue();
+}
+
 // ── Manual round start ───────────────────────────────────────
 function startRoundManual() {
     fetch('/api/start-round', { method: 'POST' })
