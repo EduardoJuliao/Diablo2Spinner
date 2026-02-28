@@ -1,3 +1,8 @@
+// OBS overlay mode: use http://localhost:3000?obs for transparent background
+if (new URLSearchParams(window.location.search).has('obs')) {
+    document.body.classList.add('obs-mode');
+}
+
 // Socket.io connection
 const socket = io();
 

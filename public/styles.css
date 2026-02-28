@@ -12,6 +12,16 @@ body {
     padding: 20px;
 }
 
+/* OBS browser source: add ?obs to URL for transparent background overlay mode */
+body.obs-mode {
+    background: transparent;
+}
+
+body.obs-mode .test-controls,
+body.obs-mode .stats {
+    display: none;
+}
+
 .container {
     max-width: 1200px;
     margin: 0 auto;
