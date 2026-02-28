@@ -269,15 +269,14 @@ socket.on('connect', () => console.log('✅ Connected to server'));
 
 socket.on('startRound', () => {
     if (roundActive || isSpinning) return;
-    if (spinQueue.length === 0) {
-        console.log('⚠️ Start round triggered but queue is empty');
-        return;
-    }
-    console.log('🎡 Manual round start — spinning queue');
+    console.log('🎡 Manual round start');
     startRound();
-    spinQueue.shift();
-    updateSpinQueue();
-    spinWheel();
+    // If there are already queued spins, start spinning immediately
+    if (spinQueue.length > 0) {
+        spinQueue.shift();
+        updateSpinQueue();
+        spinWheel();
+    }
 });
 
 socket.on('newSpin', (data) => {
