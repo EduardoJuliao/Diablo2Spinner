@@ -13,7 +13,7 @@ const centerY = canvas.height / 2;
 const radius = 280;
 
 // ── Wheel segments ───────────────────────────────────────────
-const K  = { text: 'Keep Char',    color: '#28a745' };
+const K  = { text: 'Keep Char',    color: '#e67e22' };
 const KS = { text: 'Keep Shared',  color: '#007bff' };
 const D  = { text: 'DROP',         color: '#dc3545' };
 
@@ -35,6 +35,7 @@ let spinQueue = [];
 let roundActive = false;
 let timerInterval = null;
 let timeRemaining = 120;
+let pendingRoundEnd = null; // 'timeout' — set when timer fires mid-spin
 
 function startRound() {
     resetRoundBits();
@@ -55,15 +56,24 @@ function endRound(reason) {
     roundActive = false;
     updateTimerDisplay();
 
-    if (reason === 'timeout') {
-        showOverlay("TIME'S UP!\nYOU WIN! Keep it!", 'win', 6000);
-    } else {
-        showOverlay('ROUND OVER\nDROP IT!', 'drop', 6000);
+    // If a spin is still in progress, defer the overlay until it finishes
+    if (reason === 'timeout' && isSpinning) {
+        pendingRoundEnd = 'timeout';
+        return;
     }
 
+    showRoundResult(reason);
+}
+
+function showRoundResult(reason) {
+    if (reason === 'timeout') {
+        showOverlay("TIME'S UP!\nYOU WIN! Keep it!", 'win', 8000);
+    } else {
+        showOverlay('ROUND OVER\nDROP IT!', 'drop', 8000);
+    }
     setTimeout(() => {
         document.getElementById('currentDonor').textContent = '';
-    }, 6000);
+    }, 8000);
 }
 
 function updateTimerDisplay() {
@@ -214,10 +224,15 @@ function spinWheel(duration = 5000) {
             socket.emit('spinComplete', { result: result.text });
 
             if (result.text === 'DROP') {
+                pendingRoundEnd = null;
                 endRound('drop');
+            } else if (pendingRoundEnd === 'timeout') {
+                // Timer fired while this spin was running — show win now
+                pendingRoundEnd = null;
+                showRoundResult('timeout');
             } else {
-                // Show Keep / Keep-Share overlay, then continue queue if round still active
-                showOverlay(result.text, result.text === 'Keep Char' ? 'keep' : 'share');
+                // Normal spin result — show overlay then continue queue
+                showOverlay(result.text, result.text === 'Keep Char' ? 'keep' : 'share', 1800);
                 setTimeout(() => {
                     if (roundActive && spinQueue.length > 0) {
                         spinQueue.shift();
@@ -226,7 +241,7 @@ function spinWheel(duration = 5000) {
                     } else {
                         document.getElementById('currentDonor').textContent = '';
                     }
-                }, 3000);
+                }, 2000);
             }
         }
     }
@@ -250,11 +265,13 @@ socket.on('newSpin', (data) => {
     document.getElementById('currentDonor').textContent =
         `${data.donor} donated ${data.bits} bits! (${data.spins} spin${data.spins > 1 ? 's' : ''})`;
 
+    // Start round BEFORE addDonation so resetRoundBits runs first
+    if (!isSpinning && !roundActive) startRound();
+
     addDonation(data.donor, data.bits);
     updateSpinQueue();
 
     if (!isSpinning) {
-        if (!roundActive) startRound();
         spinQueue.shift();
         updateSpinQueue();
         spinWheel();
