@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diablo 2 Loot Wheel - Bits Spinner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Diablo 2 Loot Wheel</h1>
+        <p class="subtitle">100 Bits = 1 Spin | Find a Unique? Let chat decide your fate!</p>
+
+        <div class="wheel-container">
+            <div class="wheel-pointer"></div>
+            <canvas id="wheelCanvas" width="600" height="600"></canvas>
+        </div>
+
+        <div class="info-panel">
+            <div id="currentDonor" class="donor-info"></div>
+            <div id="spinQueue" class="spin-queue"></div>
+            <div id="result" class="result-display"></div>
+        </div>
+
+        <div class="test-controls">
+            <h3>Test Controls</h3>
+            <input type="text" id="testDonor" placeholder="Donor Name" value="TestViewer">
+            <input type="number" id="testBits" placeholder="Bits Amount" value="100" step="100">
+            <button onclick="testSpin()">Test Spin</button>
+        </div>
+
+        <div class="stats">
+            <h3>Wheel Statistics</h3>
+            <p>Total Segments: 40</p>
+            <p class="stat-keep">Keep: 20 segments (50%)</p>
+            <p class="stat-share">Keep - Share: 19 segments (47.5%)</p>
+            <p class="stat-drop">DROP: 1 segment (2.5%)</p>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="wheel.js"></script>
+</body>
+</html>
